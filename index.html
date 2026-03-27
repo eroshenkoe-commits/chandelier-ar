@@ -1,185 +1,168 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Люстра AR</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #111; color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    #info { text-align: center; padding: 20px; }
-    h1 { font-size: 1.4em; margin-bottom: 10px; }
-    p { font-size: 0.9em; color: #aaa; margin-bottom: 20px; }
-    #start-btn {
-      background: #fff;
-      color: #111;
-      border: none;
-      padding: 14px 32px;
-      font-size: 1.1em;
-      border-radius: 30px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    #start-btn:disabled { background: #555; color: #999; cursor: not-allowed; }
-    #status { margin-top: 16px; font-size: 0.85em; color: #f0c040; min-height: 24px; text-align: center; }
-    canvas { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
-    #exit-btn {
-      display: none;
-      position: fixed;
-      bottom: 30px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255,255,255,0.15);
-      color: #fff;
-      border: 2px solid #fff;
-      padding: 12px 28px;
-      border-radius: 30px;
-      font-size: 1em;
-      cursor: pointer;
-      z-index: 100;
-      backdrop-filter: blur(6px);
-    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#111; color:#fff; font-family:sans-serif; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+    #info { text-align:center; padding:24px; }
+    h1 { font-size:1.5em; margin-bottom:8px; }
+    p { font-size:0.9em; color:#aaa; margin-bottom:24px; line-height:1.5; }
+    #start-btn { background:#fff; color:#111; border:none; padding:14px 36px; font-size:1.1em; border-radius:30px; cursor:pointer; font-weight:bold; }
+    #start-btn:disabled { background:#444; color:#888; cursor:not-allowed; }
+    #status { margin-top:14px; font-size:0.85em; color:#f0c040; min-height:22px; }
+    canvas { display:none; position:fixed; top:0; left:0; width:100%; height:100%; }
+
+    #overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:10; }
+
     #hint {
-      display: none;
-      position: fixed;
-      top: 30px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.6);
-      color: #fff;
-      padding: 10px 20px;
-      border-radius: 20px;
-      font-size: 0.9em;
-      text-align: center;
-      z-index: 100;
-      backdrop-filter: blur(4px);
-      white-space: nowrap;
+      position:absolute; top:24px; left:50%; transform:translateX(-50%);
+      background:rgba(0,0,0,0.65); color:#fff; padding:10px 20px;
+      border-radius:20px; font-size:0.88em; text-align:center;
+      backdrop-filter:blur(6px); white-space:nowrap;
+    }
+    #controls {
+      position:absolute; bottom:30px; left:50%; transform:translateX(-50%);
+      display:flex; gap:12px; pointer-events:all;
+    }
+    .ctrl-btn {
+      background:rgba(255,255,255,0.15); color:#fff; border:1.5px solid rgba(255,255,255,0.5);
+      padding:12px 22px; border-radius:30px; font-size:0.95em; cursor:pointer;
+      backdrop-filter:blur(6px);
+    }
+    #scale-info {
+      position:absolute; bottom:90px; left:50%; transform:translateX(-50%);
+      background:rgba(0,0,0,0.5); color:#fff; padding:6px 16px;
+      border-radius:16px; font-size:0.8em; backdrop-filter:blur(4px);
     }
   </style>
 </head>
 <body>
 
 <div id="info">
-  <h1>🔦 Люстра в AR</h1>
-  <p>Наведіть камеру на стелю.<br/>Коли з'явиться маркер — натисніть щоб розмістити люстру.</p>
-  <button id="start-btn">Запустити AR</button>
-  <div id="status">Перевірка підтримки WebXR...</div>
+  <h1>🔦 Люстра AR</h1>
+  <p>Направте камеру на стелю.<br/>Натисніть щоб розмістити люстру.<br/>Два пальці — масштаб. Повторний тап — перемістити.</p>
+  <button id="start-btn" disabled>Запустити AR</button>
+  <div id="status">Перевірка підтримки...</div>
 </div>
 
 <canvas id="canvas"></canvas>
-<div id="hint">📱 Направте камеру на стелю</div>
-<button id="exit-btn">✕ Вийти з AR</button>
 
-<!-- Three.js -->
+<div id="overlay">
+  <div id="hint">📱 Направте камеру на стелю</div>
+  <div id="scale-info" style="display:none">Масштаб: 100%</div>
+  <div id="controls">
+    <button class="ctrl-btn" id="smaller-btn">➖ Менше</button>
+    <button class="ctrl-btn" id="exit-btn">✕ Вийти</button>
+    <button class="ctrl-btn" id="bigger-btn">➕ Більше</button>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<!-- GLTFLoader -->
-<script>
-// Inline GLTFLoader (r128 compatible)
-</script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
   // ============================================================
-  // 👇 ВСТАВТЕ СВОЄ ПОСИЛАННЯ НА .glb ФАЙЛ ТУТ:
- const MODEL_URL = './2000174CL-06G_7.glb';
+  const MODEL_URL = './2000174CL-06G_7.glb';
   // ============================================================
 
-  const statusEl = document.getElementById('status');
-  const startBtn = document.getElementById('start-btn');
-  const exitBtn = document.getElementById('exit-btn');
-  const hintEl = document.getElementById('hint');
-  const infoEl = document.getElementById('info');
-  const canvas = document.getElementById('canvas');
+  const statusEl  = document.getElementById('status');
+  const startBtn  = document.getElementById('start-btn');
+  const overlay   = document.getElementById('overlay');
+  const hintEl    = document.getElementById('hint');
+  const scaleInfo = document.getElementById('scale-info');
+  const infoEl    = document.getElementById('info');
+  const canvas    = document.getElementById('canvas');
 
-  let renderer, scene, camera, model;
-  let xrSession = null;
-  let hitTestSource = null;
-  let hitTestSourceRequested = false;
-  let reticle; // маркер на стелі
+  let renderer, scene, camera;
+  let xrSession = null, hitTestSource = null, hitTestSourceRequested = false;
+  let reticle, model;
   let placed = false;
+  let currentScale = 1.0;
+  let modelBaseScale = 1.0;
 
-  // Перевірка WebXR
+  // Pinch scale
+  let lastPinchDist = null;
+
+  // WebXR check
   if (navigator.xr) {
-    navigator.xr.isSessionSupported('immersive-ar').then(supported => {
-      if (supported) {
-        statusEl.textContent = '✅ AR підтримується';
-        startBtn.disabled = false;
-      } else {
-        statusEl.textContent = '❌ AR не підтримується на цьому пристрої';
-        startBtn.disabled = true;
-      }
+    navigator.xr.isSessionSupported('immersive-ar').then(ok => {
+      if (ok) { statusEl.textContent = '✅ AR підтримується'; startBtn.disabled = false; }
+      else { statusEl.textContent = '❌ AR не підтримується на цьому пристрої'; }
     });
   } else {
-    statusEl.textContent = '❌ WebXR не підтримується. Потрібен Chrome на Android.';
-    startBtn.disabled = true;
+    statusEl.textContent = '❌ Потрібен Chrome на Android';
   }
 
   startBtn.addEventListener('click', startAR);
-  exitBtn.addEventListener('click', stopAR);
+  document.getElementById('exit-btn').addEventListener('click', stopAR);
+  document.getElementById('smaller-btn').addEventListener('click', () => adjustScale(0.85));
+  document.getElementById('bigger-btn').addEventListener('click',  () => adjustScale(1.15));
+
+  function adjustScale(factor) {
+    currentScale *= factor;
+    currentScale = Math.max(0.1, Math.min(5.0, currentScale));
+    if (model) model.scale.setScalar(modelBaseScale * currentScale);
+    scaleInfo.style.display = 'block';
+    scaleInfo.textContent = `Масштаб: ${Math.round(currentScale * 100)}%`;
+  }
 
   function initThree() {
-    renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    renderer = new THREE.WebGLRenderer({ canvas, alpha:true, antialias:true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.xr.enabled = true;
 
     scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+    camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 30);
 
-    // Освітлення
-    const ambient = new THREE.AmbientLight(0xffffff, 1.2);
-    scene.add(ambient);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    dirLight.position.set(1, 2, 1);
-    scene.add(dirLight);
+    scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+    const dir = new THREE.DirectionalLight(0xffffff, 1.0);
+    dir.position.set(2, 4, 2);
+    scene.add(dir);
 
-    // Маркер (reticle) — кружок що показує де стеля
-    const ringGeo = new THREE.RingGeometry(0.05, 0.08, 32);
-    ringGeo.applyMatrix4(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
-    reticle = new THREE.Mesh(ringGeo, ringMat);
+    // Reticle — маркер на стелі
+    const geo = new THREE.RingGeometry(0.06, 0.1, 32);
+    geo.applyMatrix4(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+    reticle = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color:0x00ffff, side:THREE.DoubleSide }));
     reticle.visible = false;
     scene.add(reticle);
 
-    // Завантажити модель
+    // Завантаження моделі
     const loader = new THREE.GLTFLoader();
-    loader.load(
-      MODEL_URL,
-      (gltf) => {
-        model = gltf.scene;
+    loader.load(MODEL_URL, gltf => {
+      model = gltf.scene;
 
-        // Нормалізація розміру
-        const box = new THREE.Box3().setFromObject(model);
-        const size = box.getSize(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const scale = 0.8 / maxDim;
-        model.scale.setScalar(scale);
+      // Нормалізація: вписати у сферу ~0.6м
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      modelBaseScale = 0.6 / maxDim;
+      model.scale.setScalar(modelBaseScale);
 
-        // Pivot зверху: зміщуємо модель так щоб верхня точка = (0,0,0)
-        const center = box.getCenter(new THREE.Vector3());
-        model.position.set(
-          -center.x * scale,
-          (-box.min.y) * scale, // верхня точка на Y=0, модель висить вниз
-          -center.z * scale
-        );
+      // Зсунути так щоб верхня точка моделі = Y:0 (pivot зверху, висить вниз)
+      box.setFromObject(model);
+      const center = box.getCenter(new THREE.Vector3());
+      model.position.set(-center.x, -box.min.y * 0 - (box.max.y - box.min.y) / 2 * modelBaseScale, -center.z);
 
-        model.visible = false;
-        scene.add(model);
-        statusEl.textContent = '✅ Модель завантажена';
-      },
-      (xhr) => {
-        statusEl.textContent = `Завантаження: ${Math.round(xhr.loaded / xhr.total * 100)}%`;
-      },
-      (err) => {
-        statusEl.textContent = '❌ Помилка завантаження моделі';
-        console.error(err);
-      }
-    );
+      // Правильний pivot: верхня точка на origin
+      model.position.y = -(box.max.y + box.min.y) / 2 * modelBaseScale + (size.y / 2) * modelBaseScale;
+
+      model.visible = false;
+      scene.add(model);
+      statusEl.textContent = '✅ Модель готова';
+    }, xhr => {
+      if (xhr.total) statusEl.textContent = `Завантаження: ${Math.round(xhr.loaded/xhr.total*100)}%`;
+    }, err => {
+      statusEl.textContent = '❌ Помилка завантаження моделі';
+      console.error(err);
+    });
   }
 
   async function startAR() {
     initThree();
-
     try {
       xrSession = await navigator.xr.requestSession('immersive-ar', {
         requiredFeatures: ['hit-test'],
@@ -187,7 +170,7 @@
         domOverlay: { root: document.body }
       });
     } catch(e) {
-      statusEl.textContent = '❌ Не вдалось запустити AR: ' + e.message;
+      statusEl.textContent = '❌ ' + e.message;
       return;
     }
 
@@ -196,75 +179,82 @@
 
     infoEl.style.display = 'none';
     canvas.style.display = 'block';
-    exitBtn.style.display = 'block';
-    hintEl.style.display = 'block';
+    overlay.style.display = 'block';
     placed = false;
+    currentScale = 1.0;
 
     xrSession.addEventListener('end', onSessionEnd);
-
-    // Tap для розміщення
     xrSession.addEventListener('select', onSelect);
+
+    // Pinch via touchstart/touchmove на canvas
+    canvas.addEventListener('touchstart', onTouchStart, { passive:false });
+    canvas.addEventListener('touchmove',  onTouchMove,  { passive:false });
+    canvas.addEventListener('touchend',   onTouchEnd,   { passive:false });
 
     renderer.setAnimationLoop(render);
   }
 
   function onSelect() {
-    if (reticle.visible && model && !placed) {
-      // Розміщуємо модель там де reticle (на стелі)
-      model.position.setFromMatrixPosition(reticle.matrix);
-      // Люстра висить ВНИЗ від точки стелі
-      model.visible = true;
-      placed = true;
-      hintEl.textContent = '✅ Люстра розміщена! Походіть навколо.';
-      setTimeout(() => { hintEl.style.display = 'none'; }, 3000);
-    } else if (placed) {
-      // Повторний тап — перемістити
-      if (reticle.visible) {
-        model.position.setFromMatrixPosition(reticle.matrix);
-      }
+    if (!reticle.visible || !model) return;
+    const pos = new THREE.Vector3();
+    pos.setFromMatrixPosition(reticle.matrix);
+    model.position.copy(pos);
+    // Зсунути вниз на половину висоти моделі щоб висіла
+    const box = new THREE.Box3().setFromObject(model);
+    const h = box.max.y - box.min.y;
+    model.position.y = pos.y - h / 2;
+    model.visible = true;
+    placed = true;
+    hintEl.textContent = '✅ Натисніть знову щоб перемістити';
+    setTimeout(() => { hintEl.style.display = 'none'; }, 3000);
+  }
+
+  // Pinch to scale
+  function getTouchDist(t) {
+    const dx = t[0].clientX - t[1].clientX;
+    const dy = t[0].clientY - t[1].clientY;
+    return Math.sqrt(dx*dx + dy*dy);
+  }
+  function onTouchStart(e) { if (e.touches.length === 2) { lastPinchDist = getTouchDist(e.touches); e.preventDefault(); } }
+  function onTouchMove(e)  {
+    if (e.touches.length === 2 && lastPinchDist !== null) {
+      const dist = getTouchDist(e.touches);
+      const factor = dist / lastPinchDist;
+      lastPinchDist = dist;
+      adjustScale(factor);
+      e.preventDefault();
     }
   }
+  function onTouchEnd(e)   { if (e.touches.length < 2) lastPinchDist = null; }
 
   function render(timestamp, frame) {
     if (!frame) return;
 
-    const referenceSpace = renderer.xr.getReferenceSpace();
-    const session = renderer.xr.getSession();
+    const refSpace = renderer.xr.getReferenceSpace();
+    const session  = renderer.xr.getSession();
 
-    // Hit test source — шукаємо горизонтальні поверхні (в т.ч. стелю)
     if (!hitTestSourceRequested) {
-      session.requestReferenceSpace('viewer').then(viewerSpace => {
-        session.requestHitTestSource({ space: viewerSpace }).then(source => {
-          hitTestSource = source;
-        });
+      session.requestReferenceSpace('viewer').then(vs => {
+        session.requestHitTestSource({ space: vs }).then(s => { hitTestSource = s; });
       });
       hitTestSourceRequested = true;
     }
 
     if (hitTestSource) {
-      const hitTestResults = frame.getHitTestResults(hitTestSource);
-
-      if (hitTestResults.length > 0) {
-        const hit = hitTestResults[0];
-        const pose = hit.getPose(referenceSpace);
-
-        if (pose) {
-          const pos = pose.transform.position;
-          const camPose = frame.getViewerPose(referenceSpace);
-
-          if (camPose) {
-            const camY = camPose.transform.position.y;
-            // Показуємо reticle тільки якщо поверхня ВИЩЕ камери (стеля)
-            if (pos.y > camY + 0.3) {
-              reticle.visible = true;
-              reticle.matrix.fromArray(pose.transform.matrix);
-              if (!placed) hintEl.textContent = '👆 Натисніть щоб розмістити люстру';
-            } else {
-              if (!placed) {
-                reticle.visible = false;
-                hintEl.textContent = '📱 Направте камеру на стелю';
-              }
-            }
+      const hits = frame.getHitTestResults(hitTestSource);
+      if (hits.length > 0) {
+        const pose    = hits[0].getPose(refSpace);
+        const camPose = frame.getViewerPose(refSpace);
+        if (pose && camPose) {
+          const surfaceY = pose.transform.position.y;
+          const camY     = camPose.transform.position.y;
+          // Стеля = поверхня що мінімум на 30см вище камери
+          if (surfaceY > camY + 0.3) {
+            reticle.visible = true;
+            reticle.matrix.fromArray(pose.transform.matrix);
+            if (!placed) hintEl.textContent = '👆 Натисніть щоб розмістити люстру';
+          } else {
+            if (!placed) { reticle.visible = false; hintEl.textContent = '📱 Направте камеру на стелю'; }
           }
         }
       } else {
@@ -275,20 +265,17 @@
     renderer.render(scene, camera);
   }
 
-  function stopAR() {
-    if (xrSession) xrSession.end();
-  }
+  function stopAR() { if (xrSession) xrSession.end(); }
 
   function onSessionEnd() {
-    xrSession = null;
-    hitTestSource = null;
-    hitTestSourceRequested = false;
+    xrSession = null; hitTestSource = null; hitTestSourceRequested = false;
     canvas.style.display = 'none';
-    exitBtn.style.display = 'none';
-    hintEl.style.display = 'none';
+    overlay.style.display = 'none';
     infoEl.style.display = 'flex';
-    statusEl.textContent = 'AR завершено. Можна запустити знову.';
     placed = false;
+    canvas.removeEventListener('touchstart', onTouchStart);
+    canvas.removeEventListener('touchmove',  onTouchMove);
+    canvas.removeEventListener('touchend',   onTouchEnd);
   }
 </script>
 </body>
